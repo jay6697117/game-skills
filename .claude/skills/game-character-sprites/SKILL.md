@@ -125,14 +125,16 @@ Required handoff from `codex-gateway-imagegen`:
 prompt + optional reference image -> local PNG file -> run/source/<cell>-<action>-<direction>.png
 ```
 
-If `codex-gateway-imagegen` is unavailable or cannot return a local file, stop and say the image generation dependency is missing. Do not claim the sprite pack is complete.
+Valid reference inputs are a local file path, an image URL, or a visible chat attachment in the current Claude Code conversation. If only a chat attachment is available, use it as `codex-gateway-imagegen` reference grounding and record it in provenance instead of inventing a text-only character.
+
+If `codex-gateway-imagegen` is unavailable, cannot consume the available visual reference, or cannot return a local file, stop and say the image generation dependency is missing. Do not claim the sprite pack is complete.
 
 Keep the manifest field names `method` and `imagegen_output_path` for validator compatibility, but set `method` to `codex-gateway-imagegen`.
 
 ## Agent Workflow
 
 1. Establish the requested scope: cell size or sizes, actions, directions, frame count, weapon/class, and must-keep reference details. Treat explicit sizes as mandatory outputs.
-2. Ground the character from the user reference through `codex-gateway-imagegen`. If the image generation skill cannot consume the file path or attached image, stop and say the reference could not be used instead of inventing a loose text-only character.
+2. Ground the character from the user reference through `codex-gateway-imagegen`. Valid reference sources are a local file path, image URL, or visible chat attachment. If only a chat attachment is available, use it as reference grounding and record `source_type: "chat_attachment"`; stop only when no usable visual reference can be consumed.
 3. Create `run/run-manifest.json` before generation. Record the reference source, identity details, requested scope, and planned `codex-gateway-imagegen` method.
 4. Build one strong canonical base sprite first for the smallest requested size, usually `32x32`, so the primary design is locked before adding detail.
 5. Generate one action-direction-size strip at a time through `codex-gateway-imagegen`, e.g. `32/walk-south`, then `64/walk-south`, then `128/walk-south`.
@@ -153,7 +155,7 @@ For Claude Code, keep the workflow CLI and file based. Write artifacts to the wo
 
 Do not show raw generated chroma-key strips as final results. Raw strips are intermediate QA only. Final visual previews must be cleaned transparent WebP/GIF or checkerboard GIF/contact sheets.
 
-When using a chat attachment as reference, record an identity note in the run folder listing the exact details preserved from the image. Do not write "falling back to a prompt" unless the image is truly unavailable. The visible chat image is valid grounding for identity notes even when it is not available as a normal filesystem path.
+When using a chat attachment as reference, record it in the manifest as `source_type: "chat_attachment"` with a stable source label and non-empty `identity_notes`. Do not write "falling back to a prompt" unless the image is truly unavailable. The visible chat image is valid reference grounding and provenance even when it is not available as a normal filesystem path.
 
 ## codex-gateway-imagegen File Handoff
 
@@ -174,7 +176,7 @@ Each source image must be generated specifically for that cell budget. For examp
 Emergency fallback only: if `codex-gateway-imagegen` already returned one multi-size contact sheet, `scripts/import_imagegen_contact_sheet.py` may be used to rescue it for diagnosis. That output must be marked as `imported_contact_sheet: true` in the manifest and must not be called a native multi-size pass unless the user explicitly accepts that fallback.
 
 ```bash
-python "<skill>/scripts/import_imagegen_contact_sheet.py" \
+python "${CLAUDE_SKILL_DIR}/scripts/import_imagegen_contact_sheet.py" \
   --input path/to/codex-gateway-imagegen-output.png \
   --run-dir path/to/run \
   --action walk \
@@ -362,7 +364,7 @@ Never globally delete all green-ish pixels. Many sprites use green for magic, po
 Recommended cleanup:
 
 ```bash
-python "<skill>/scripts/pixel_snap.py" \
+python "${CLAUDE_SKILL_DIR}/scripts/pixel_snap.py" \
   --input path/to/source.png \
   --output path/to/clean.png \
   --cell <cell> \
@@ -395,7 +397,7 @@ tachi-snap bulk ./input-ai-pixel-art ./output-clean \
 Assemble separate strips into one action atlas:
 
 ```bash
-python "<skill>/scripts/assemble_action_sheet.py" \
+python "${CLAUDE_SKILL_DIR}/scripts/assemble_action_sheet.py" \
   --input-dir path/to/generated \
   --output path/to/final/walk-sheet.png \
   --action walk \
@@ -414,7 +416,7 @@ Use the bundled assembler before writing ad hoc slicing code. Equal-width slicin
 Validate before final response:
 
 ```bash
-python "<skill>/scripts/validate_sheet.py" \
+python "${CLAUDE_SKILL_DIR}/scripts/validate_sheet.py" \
   --input path/to/final/walk-sheet-clean.png \
   --rows <rows> \
   --columns 6 \
@@ -431,7 +433,7 @@ Run `scripts/audit_sprite_motion.py` for every walk, run, and jump sheet. Also r
 Validate run provenance and the manual visual gate:
 
 ```bash
-python "<skill>/scripts/validate_run_manifest.py" \
+python "${CLAUDE_SKILL_DIR}/scripts/validate_run_manifest.py" \
   --manifest path/to/run/run-manifest.json \
   --required-sizes 32,64,128 \
   --required-actions walk \
@@ -442,7 +444,7 @@ python "<skill>/scripts/validate_run_manifest.py" \
 Validate multi-size hierarchy as QA only. This command makes thumbnail comparisons to catch structure drift. It must never be used to create the 32px, 64px, or 128px assets:
 
 ```bash
-python "<skill>/scripts/validate_resolution_hierarchy.py" \
+python "${CLAUDE_SKILL_DIR}/scripts/validate_resolution_hierarchy.py" \
   --base32 path/to/run/32/final/walk-sheet-clean.png \
   --sheet64 path/to/run/64/final/walk-sheet-clean.png \
   --sheet128 path/to/run/128/final/walk-sheet-clean.png \
@@ -491,7 +493,7 @@ Validation passing only proves geometry/pixel hygiene. It does not prove the ani
 Prefer animated WebP for transparent previews. GIF is compatibility output.
 
 ```bash
-python "<skill>/scripts/export_animation_previews.py" \
+python "${CLAUDE_SKILL_DIR}/scripts/export_animation_previews.py" \
   --atlas path/to/final/walk-sheet-clean.png \
   --rows <rows> \
   --columns 6 \
@@ -510,7 +512,7 @@ GIF rules:
 - no dithering
 - no optimizer that changes disposal to `1`
 
-Always send preview links when the user asks for GIFs.
+Always return preview workspace paths when the user asks for GIFs, and attach or surface preview files when the interface supports it.
 
 For `128x128`, distinguish native redraw from upscale. If the user asks for native 128, generate native 128 strips. A nearest-neighbor 2x version of 64px art is an upscale pack, not a native 128 asset.
 
