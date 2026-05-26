@@ -105,6 +105,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Responses model to call.")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="HTTP timeout in seconds.")
     parser.add_argument(
+        "--force-tool-choice",
+        action="store_true",
+        help="Force the Responses call to invoke the image_generation tool.",
+    )
+    parser.add_argument(
         "--max-retries",
         type=int,
         default=DEFAULT_MAX_RETRIES,
@@ -177,6 +182,8 @@ def build_payload(args: argparse.Namespace) -> bytes:
             }
         ],
     }
+    if args.force_tool_choice:
+        payload["tool_choice"] = {"type": "image_generation"}
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
