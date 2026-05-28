@@ -1,38 +1,32 @@
 # Findings & Decisions
 
 ## Requirements
-- 更新 `.claude/skills/generate2dmap` 和 `.claude/skills/generate2dsprite`。
-- 不仅比较文件，还要理解 Claude Code skill 与 Codex skill 官方差异。
-- 使用 agent team 协助。
-- 最终要修改 Claude Code skill 文件。
+- 目标目录：`.claude/skills` 与 `.codex/skills`。
+- 输出文件：`CLAUDE_README.md`、`CODEX__README.md`、`README.md`。
+- 文档内容必须覆盖：skill 详细介绍、使用场景、使用指南、相似功能对比、互补关系、重叠点、差异、各自优势。
+- 代码、命令和标识符保持英文；正文使用简体中文。
 
 ## Research Findings
-- Claude Code skill：项目目录为 `.claude/skills/<skill-name>/SKILL.md`；`SKILL.md` 使用 YAML frontmatter + markdown；可用 `/skill-name` 调用，也可由 Claude 根据 `description` 自动调用。
-- Claude Code 支持 `${CLAUDE_SKILL_DIR}` 定位 skill 自带脚本/资源。
-- Codex skill：通常在 `.agents/skills` 或 Codex skill 路径，显式调用使用 `$skill` 或 `/skills`；可有 `agents/openai.yaml` 配置 UI/policy/dependencies。
-- `agents/openai.yaml`、`$CODEX_HOME`、`built-in image_gen`、`view_image`、`$generate2dsprite` 是 Codex 语境，不能原样复制到 Claude Code skill。
-- `agent-sprite-forge-origin` 最新版新增/强化：map_mode、genre routing、可玩地图不能单图交付、visual reference handoff、post-reference object gate、side_scroll_mode/parallax 合同、clean HD 默认风格、prop/object 分类、hero_action_bundle、body-only action、single-row body 禁止、layout guide。
-
-## Implementation Findings
-- `generate2dmap` 需要以 `map_mode` 作为第一决策层，再选择 visual/runtime/collision/engine 轴。
-- playable map、level、stage、room、prototype、engine scene 不能默认只交付 single baked image。
-- dressed reference 是规划 artifact；如果对象涉及碰撞、y-sort、遮挡、交互或复用，必须拆成独立 runtime prop/object。
-- map props 需要 object classification gate，避免把 NPC、敌人、 projectile、impact、UI 等误塞进 prop pack。
-- `generate2dsprite` 需要 body-only hero action 规则：hero attack/shoot/cast body sheet 不能烘焙 slash、muzzle、projectile、impact、dust。
-- raw single-row body sheet 默认禁止；`strip_1x3`/`strip_1x4` 主要用于 projectile、FX、impact 或明确的 engine strip。
-- `generate2dsprite.py process --mode` 不限制新 mode 枚举，但 `shoot`/`jump` 等新动作没有内建默认网格，文档命令应显式传 `--rows`/`--cols`。
-- `make_layout_guide.py` 是确定性 layout-only helper，适合迁移为 Claude Code skill bundled script。
+- 两个目录都包含同一组核心 skill：`codex-gateway-imagegen`、`game-character-sprites`、`generate2dmap`、`generate2dsprite`。
+- `.codex/skills` 额外包含每个 skill 的 `agents/openai.yaml`，用于 Codex UI 展示、默认提示和隐式调用策略。
+- `codex-gateway-imagegen` 是 Responses-compatible gateway 的图片生成/编辑 helper，读取 `~/.codex/config.toml` 和 `~/.codex/auth.json`，输出本地 PNG。
+- Claude 版 `codex-gateway-imagegen` 示例使用 `${CLAUDE_SKILL_DIR}/scripts/generate_gateway_image.py`；Codex 版示例使用 skill 目录内 `scripts/generate_gateway_image.py`。
+- Claude 版 `generate2dmap`、`generate2dsprite`、`game-character-sprites` 的原始视觉资产生成必须通过 `codex-gateway-imagegen`；Codex 版默认使用内置 `image_gen`。
+- `generate2dmap` 面向地图、关卡、场景、tilemap、layered raster、parallax stage、prop pack、collision、zone 和 scene-hook metadata；它不负责角色、敌人、NPC、投射物或动画 sprite。
+- `generate2dsprite` 面向通用 2D sprite、透明 props、角色/生物/FX/projectile/impact、hero action bundle 和 engine atlas；它强调 raw art 来自图像生成，脚本只做确定性后处理和 QC。
+- `game-character-sprites` 是更专门的固定格像素角色动画 skill，硬性支持 `32x32`、`64x64`、`128x128` native cell、多方向、多动作、provenance、visual review、GIF/WebP previews。
+- `generate2dsprite` 与 `game-character-sprites` 重叠在角色动画和 sheet 后处理，但前者更通用，支持 clean HD/map props/FX/bundles；后者更严格，适合固定 cell pixel-art 角色生产线和多尺寸一致性验证。
+- `generate2dmap` 与 `generate2dsprite` 互补：地图 skill 负责地形、地图结构、碰撞和对象摆放；sprite skill 负责可复用透明对象、角色、FX 和动画资产。
+- `codex-gateway-imagegen` 与其他三个 skill 互补：它是 Claude 侧视觉生成后端，也是 Codex 侧在内置图片路径不可用时的 fallback。
 
 ## Technical Decisions
 | Decision | Rationale |
 |----------|-----------|
-| 只更新 `.claude/skills/*` | 用户要求更新 Claude Code skill。 |
-| 不复制 `agents/openai.yaml` | Codex 专用；将其有用规则转写进 Claude Code 正文。 |
-| 添加 `make_layout_guide.py` | 这是确定性辅助脚本，适合迁移到 Claude Code。 |
-| 保留 `codex-gateway-imagegen` | Claude Code adapter 的 raw image generation 必须走已安装 gateway skill。 |
-| 默认 clean HD / project-native，pixel art 仅显式请求 | 对齐 origin 最新 map/sprite 风格规则，避免旧版一律 pixel-art。 |
+| 独立文档使用中文正文 | 符合仓库交互与文档阅读要求。 |
+| 保留真实路径和 skill 名称 | 降低用户按文档定位文件时的歧义。 |
+| 文档将 Claude 和 Codex 分开描述 | 两者能力相似但调用入口、图像生成后端和路径约定不同。 |
+| 对比部分按能力边界组织 | 用户特别要求比较相似 skill 的互补、重叠、差异和优势。 |
 
 ## Resources
-- Claude Code skills docs: https://code.claude.com/docs/en/skills
-- OpenAI Codex skills docs: https://developers.openai.com/codex/skills
-- OpenAI Codex AGENTS.md docs: https://developers.openai.com/codex/guides/agents-md
+- `.claude/skills`
+- `.codex/skills`

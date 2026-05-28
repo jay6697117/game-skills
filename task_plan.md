@@ -1,51 +1,46 @@
-# Task Plan: Update Claude Code skills from Codex origin
+# Task Plan: Skill directory documentation
 
 ## Goal
-更新 `.claude/skills/generate2dmap` 和 `.claude/skills/generate2dsprite`，吸收 `agent-sprite-forge-origin` 最新能力，同时保留 Claude Code skill 格式、`codex-gateway-imagegen` 图像生成流程和 `${CLAUDE_SKILL_DIR}` 脚本路径。
+为 `/Users/zhangjinhui/Desktop/game-skills` 下的 `.claude/skills` 和 `.codex/skills` 编写成体系的中文说明文档：
+
+- 新建 `CLAUDE_README.md`，说明 `.claude/skills` 下各 skill 的详细介绍、使用场景、使用指南、能力对比。
+- 新建 `CODEX__README.md`，说明 `.codex/skills` 下各 skill 的详细介绍、使用场景、使用指南、能力对比。
+- 补齐根目录 `README.md`，说明项目定位、目录结构、两个文档入口、Claude/Codex 使用差异和维护规则。
 
 ## Current Phase
-Phase 5
+Complete
 
 ## Phases
 
-### Phase 1: Requirements & Discovery
-- [x] 捕获用户要求：不仅比较文件，还要理解 Claude Code skill 与 Codex skill 官方差异。
-- [x] 使用团队审计 origin、map skill、sprite skill 和官方文档。
+### Phase 1: Discovery
+- [x] 读取 `.claude/skills` 与 `.codex/skills` 的目录结构。
+- [x] 读取各 `SKILL.md`、关键 reference、README、agent metadata。
 - **Status:** complete
 
-### Phase 2: Comparative Audit
-- [x] 确认 `agents/openai.yaml` 是 Codex 专用，不复制到 Claude Code skill。
-- [x] 确认 map references、sprite references 和 sprite layout guide 能力需要更新。
+### Phase 2: Synthesis
+- [x] 归纳每个 skill 的定位、输入输出、使用场景、典型流程和验证方式。
+- [x] 对功能相似 skill 做横向对比，标出互补、重叠、差异和优势。
 - **Status:** complete
 
-### Phase 3: Implementation
-- [x] 更新 `generate2dmap` 的 `SKILL.md` 和 references。
-- [x] 更新 `generate2dsprite` 的 `SKILL.md` 和 references。
-- [x] 新增 `generate2dsprite/scripts/make_layout_guide.py`。
+### Phase 3: Documentation
+- [x] 创建 `CLAUDE_README.md`。
+- [x] 创建 `CODEX__README.md`。
+- [x] 更新根目录 `README.md`。
 - **Status:** complete
 
 ### Phase 4: Verification
-- [x] 检查 stale Codex-only terms。
-- [x] 运行 Python 语法检查。
-- [x] 查看 git diff/status 摘要。
+- [x] 检查文档路径和 skill 名称是否与实际文件一致。
+- [x] 检查 Codex 文档是否优先引用 `.codex/skills/...`。
+- [x] 查看 git status 和文档摘要。
 - **Status:** complete
-
-### Phase 5: Delivery
-- [x] 汇总修改内容、保留差异和验证结果。
-- **Status:** ready
 
 ## Decisions Made
 | Decision | Rationale |
 |----------|-----------|
-| 不复制 `agents/openai.yaml` | 这是 Codex/OpenAI 平台元数据，不是 Claude Code skill 格式。 |
-| 保留 `codex-gateway-imagegen` | Claude Code adapter 的原始图片生成硬规则。 |
-| 使用 `${CLAUDE_SKILL_DIR}` | Claude Code 官方推荐的 skill 自带脚本定位方式。 |
-| 新增 `make_layout_guide.py` | 迁移 origin 的确定性 layout-only 辅助脚本，适合 Claude Code skill bundled scripts。 |
-| `shoot`/`jump` 文档要求显式 `--rows/--cols` | 现有 processor 的 `process --mode` 可接收任意 mode，但新动作没有内建默认网格。 |
+| 不修改 skill 运行代码 | 用户要求是补齐说明文档，不涉及行为变更。 |
+| Claude 与 Codex 分开成文 | 两个目录有相似能力但运行入口、metadata 和路径约定不同。 |
+| 根 README 作为索引与维护说明 | 根 README 应承担项目入口职责，不重复两个长文档的全部细节。 |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
 |-------|---------|------------|
-| 计划文件读取失败 | 1 | 重新创建简短计划文件继续执行。 |
-| `grep` 模式以 `--` 开头被当成选项 | 1 | 改用 `grep -e`。 |
-| stale term grep 在当前环境只返回退出码不返回内容 | 2 | 改用 Python 文本扫描完成验证。 |
